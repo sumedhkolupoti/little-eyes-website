@@ -22,27 +22,29 @@ const VideoPlayer = ({ url, camId }) => {
 
         hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: false,  // Disable for better compatibility with slow networks
+          lowLatencyMode: true,           // Re-enable for live streams
           debug: false,
-          // Network tuning for poor connectivity
-          maxBufferLength: 60,           // Buffer up to 60s (helps with spotty connections)
-          maxMaxBufferLength: 120,       // Max buffer 2 minutes
-          maxBufferSize: 60 * 1000 * 1000, // 60MB buffer
-          maxBufferHole: 1,              // Tolerate 1s gaps
-          // Aggressive retry for slow networks
-          manifestLoadingTimeOut: 20000,  // 20s timeout for manifest
-          manifestLoadingMaxRetry: 6,     // Retry 6 times
-          manifestLoadingRetryDelay: 2000, // 2s between retries
-          levelLoadingTimeOut: 20000,     // 20s timeout for levels
-          levelLoadingMaxRetry: 6,
-          levelLoadingRetryDelay: 2000,
-          fragLoadingTimeOut: 30000,      // 30s timeout for fragments (segments)
-          fragLoadingMaxRetry: 10,        // Retry segments 10 times
-          fragLoadingRetryDelay: 2000,
+          // Live stream optimization - reduced buffering
+          maxBufferLength: 10,            // Only buffer 10s (prevents old footage)
+          maxMaxBufferLength: 20,         // Max 20s buffer
+          maxBufferSize: 10 * 1000 * 1000, // 10MB buffer
+          maxBufferHole: 0.5,             // Tolerate small gaps
+          liveSyncDurationCount: 3,       // Stay close to live edge
+          liveMaxLatencyDurationCount: 10, // Max drift from live edge
+          // Faster retries for live
+          manifestLoadingTimeOut: 10000,   // 10s timeout
+          manifestLoadingMaxRetry: 3,
+          manifestLoadingRetryDelay: 1000,
+          levelLoadingTimeOut: 10000,
+          levelLoadingMaxRetry: 3,
+          levelLoadingRetryDelay: 1000,
+          fragLoadingTimeOut: 20000,
+          fragLoadingMaxRetry: 3,
+          fragLoadingRetryDelay: 1000,
           // CORS settings
           xhrSetup: function (xhr, url) {
             xhr.withCredentials = false;
-            xhr.timeout = 30000; // 30s XHR timeout
+            xhr.timeout = 20000;
           },
           fetchSetup: function (context, initParams) {
             initParams.mode = 'cors';
