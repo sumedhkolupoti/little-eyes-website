@@ -1,31 +1,123 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { AlertTriangle } from 'lucide-react';
 
 const VideoPlayer = ({ url, camId }) => {
   const videoRef = useRef(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let hls;
+    setError(null);
+    setLoading(true);
+
     if (videoRef.current) {
       const video = videoRef.current;
 
       if (Hls.isSupported()) {
+        console.log(`[Cam ${camId}] Initializing HLS.js for URL:`, url);
+        
         hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: true,
+          lowLatencyMode: false,  // Disable for better compatibility with slow networks
+          debug: false,
+          // Network tuning for poor connectivity
+          maxBufferLength: 60,           // Buffer up to 60s (helps with spotty connections)
+          maxMaxBufferLength: 120,       // Max buffer 2 minutes
+          maxBufferSize: 60 * 1000 * 1000, // 60MB buffer
+          maxBufferHole: 1,              // Tolerate 1s gaps
+          // Aggressive retry for slow networks
+          manifestLoadingTimeOut: 20000,  // 20s timeout for manifest
+          manifestLoadingMaxRetry: 6,     // Retry 6 times
+          manifestLoadingRetryDelay: 2000, // 2s between retries
+          levelLoadingTimeOut: 20000,     // 20s timeout for levels
+          levelLoadingMaxRetry: 6,
+          levelLoadingRetryDelay: 2000,
+          fragLoadingTimeOut: 30000,      // 30s timeout for fragments (segments)
+          fragLoadingMaxRetry: 10,        // Retry segments 10 times
+          fragLoadingRetryDelay: 2000,
+          // CORS settings
+          xhrSetup: function(xhr, url) {
+            xhr.withCredentials = false;
+            xhr.timeout = 30000; // 30s XHR timeout
+          },
+          fetchSetup: function(context, initParams) {
+            initParams.mode = 'cors';
+            initParams.credentials = 'omit';
+            return new Request(context.url, initParams);
+          }
         });
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          console.error(`[Cam ${camId}] HLS.js error:`, data.type, data.details, data);
+          
+          if (data.fatal) {
+            switch(data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                console.error(`[Cam ${camId}] Network error - attempting recovery...`);
+                setError('Network error - retrying...');
+                setTimeout(() => hls.startLoad(), 1000);
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                console.error(`[Cam ${camId}] Media error - attempting recovery...`);
+                setError('Media error - recovering...');
+                hls.recoverMediaError();
+                break;
+              default:
+                console.error(`[Cam ${camId}] Fatal error - cannot recover`);
+                setError(`Stream error: ${data.details}`);
+                setLoading(false);
+                break;
+            }
+          }
+        });
+
+        hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+          console.log(`[Cam ${camId}] Manifest parsed:`, data);
+          setLoading(false);
+          setError(null);
+          video.play().catch(e => {
+            console.error(`[Cam ${camId}] Auto-play blocked:`, e);
+            setError('Click to play');
+          });
+        });
+
+        hls.on(Hls.Events.MANIFEST_LOADING, () => {
+          console.log(`[Cam ${camId}] Loading manifest...`);
+        });
+
+        hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
+          console.log(`[Cam ${camId}] Level loaded:`, data.details);
+        });
+
         hls.loadSource(url);
         hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.play().catch(e => console.error("Auto-play blocked:", e));
-        });
+        
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // For Safari
+        // For Safari (native HLS support)
+        console.log(`[Cam ${camId}] Using native HLS support`);
         video.src = url;
+        video.crossOrigin = 'anonymous';
+        
         video.addEventListener('loadedmetadata', () => {
-          video.play().catch(e => console.error("Auto-play blocked:", e));
+          console.log(`[Cam ${camId}] Metadata loaded`);
+          setLoading(false);
+          video.play().catch(e => {
+            console.error(`[Cam ${camId}] Auto-play blocked:`, e);
+            setError('Click to play');
+          });
         });
+
+        video.addEventListener('error', (e) => {
+          console.error(`[Cam ${camId}] Video error:`, e);
+          setError('Failed to load stream');
+          setLoading(false);
+        });
+      } else {
+        console.error(`[Cam ${camId}] HLS not supported in this browser`);
+        setError('HLS not supported in this browser');
+        setLoading(false);
       }
     }
 
@@ -34,7 +126,7 @@ const VideoPlayer = ({ url, camId }) => {
         hls.destroy();
       }
     };
-  }, [url]);
+  }, [url, camId]);
 
   const goToLive = () => {
     if (videoRef.current) {
@@ -61,7 +153,39 @@ const VideoPlayer = ({ url, camId }) => {
           muted
           playsInline
           autoPlay
+          crossOrigin="anonymous"
         />
+        {loading && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: 'white',
+            background: 'rgba(0,0,0,0.7)',
+            padding: '10px 20px',
+            borderRadius: '5px'
+          }}>
+            Loading stream...
+          </div>
+        )}
+        {error && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: '#ff4444',
+            background: 'rgba(0,0,0,0.9)',
+            padding: '15px 25px',
+            borderRadius: '8px',
+            textAlign: 'center',
+            maxWidth: '80%'
+          }}>
+            <AlertTriangle size={24} style={{ marginBottom: '8px' }} />
+            <div>{error}</div>
+          </div>
+        )}
       </div>
     </div>
   );
