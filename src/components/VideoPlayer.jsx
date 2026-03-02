@@ -22,30 +22,15 @@ const VideoPlayer = ({ url, camId }) => {
 
         hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: true,
+          lowLatencyMode: false,
           debug: false,
-          // Minimal buffering for real-time feel
-          maxBufferLength: 2,             // Only 2s buffer
-          maxMaxBufferLength: 4,          // Max 4s buffer  
-          maxBufferSize: 2 * 1000 * 1000, // 2MB buffer
-          maxBufferHole: 0.1,             // Minimal gap tolerance
-          liveSyncDurationCount: 1,       // Stay at absolute live edge (1 segment)
-          liveMaxLatencyDurationCount: 3, // Max 3 segments behind
-          backBufferLength: 0,            // No back buffer
-          // Fast retries
-          manifestLoadingTimeOut: 8000,
-          manifestLoadingMaxRetry: 3,
-          manifestLoadingRetryDelay: 500,
-          levelLoadingTimeOut: 8000,
-          levelLoadingMaxRetry: 3,
-          levelLoadingRetryDelay: 500,
-          fragLoadingTimeOut: 10000,
-          fragLoadingMaxRetry: 3,
-          fragLoadingRetryDelay: 500,
+          // Standard buffering - let HLS.js handle it naturally
+          maxBufferLength: 30,
+          maxMaxBufferLength: 60,
+          maxBufferSize: 60 * 1000 * 1000,
           // CORS settings
           xhrSetup: function (xhr, url) {
             xhr.withCredentials = false;
-            xhr.timeout = 10000;
           },
           fetchSetup: function (context, initParams) {
             initParams.mode = 'cors';
@@ -87,34 +72,6 @@ const VideoPlayer = ({ url, camId }) => {
             console.error(`[Cam ${camId}] Auto-play blocked:`, e);
             setError('Click to play');
           });
-        });
-
-        // Dynamic playback rate adjustment to stay at live edge
-        let catchupInterval = null;
-        
-        hls.on(Hls.Events.FRAG_LOADED, () => {
-          if (video.buffered.length > 0 && !video.paused) {
-            const bufferEnd = video.buffered.end(video.buffered.length - 1);
-            const currentTime = video.currentTime;
-            const latency = bufferEnd - currentTime;
-            
-            console.log(`[Cam ${camId}] Latency: ${latency.toFixed(2)}s`);
-            
-            // If we're more than 3 seconds behind, jump forward immediately
-            if (latency > 3) {
-              console.log(`[Cam ${camId}] Large gap detected - jumping to live edge`);
-              video.currentTime = bufferEnd - 0.5;
-            } 
-            // If we're 1-3 seconds behind, speed up playback to catch up
-            else if (latency > 1) {
-              video.playbackRate = 1.1; // Play 10% faster to catch up
-              console.log(`[Cam ${camId}] Catching up at 1.1x speed`);
-            } 
-            // If we're within 1 second of live, play at normal speed
-            else {
-              video.playbackRate = 1.0;
-            }
-          }
         });
 
         // Listen for stream end (VOD or live end)
