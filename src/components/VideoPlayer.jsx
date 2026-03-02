@@ -6,13 +6,11 @@ const VideoPlayer = ({ url, camId }) => {
   const videoRef = useRef(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [streamEnded, setStreamEnded] = useState(false);
 
   useEffect(() => {
     let hls;
     setError(null);
     setLoading(true);
-    setStreamEnded(false);
 
     if (videoRef.current) {
       const video = videoRef.current;
@@ -67,25 +65,11 @@ const VideoPlayer = ({ url, camId }) => {
           console.log(`[Cam ${camId}] Manifest parsed:`, data);
           setLoading(false);
           setError(null);
-          setStreamEnded(false);
           video.play().catch(e => {
             console.error(`[Cam ${camId}] Auto-play blocked:`, e);
             setError('Click to play');
           });
         });
-
-        // Listen for stream end (VOD or live end)
-        hls.on(Hls.Events.BUFFER_EOS, () => {
-          console.log(`[Cam ${camId}] Stream ended (EOS)`);
-          setStreamEnded(true);
-        });
-
-        const handleEnded = () => {
-          console.log(`[Cam ${camId}] Video element ended`);
-          setStreamEnded(true);
-        };
-
-        video.addEventListener('ended', handleEnded);
 
         hls.on(Hls.Events.MANIFEST_LOADING, () => {
           console.log(`[Cam ${camId}] Loading manifest...`);
@@ -107,19 +91,11 @@ const VideoPlayer = ({ url, camId }) => {
         video.addEventListener('loadedmetadata', () => {
           console.log(`[Cam ${camId}] Metadata loaded`);
           setLoading(false);
-          setStreamEnded(false);
           video.play().catch(e => {
             console.error(`[Cam ${camId}] Auto-play blocked:`, e);
             setError('Click to play');
           });
         });
-
-        const handleEnded = () => {
-          console.log(`[Cam ${camId}] Video element ended (native)`);
-          setStreamEnded(true);
-        };
-
-        video.addEventListener('ended', handleEnded);
 
         video.addEventListener('error', (e) => {
           console.error(`[Cam ${camId}] Video error:`, e);
@@ -167,7 +143,7 @@ const VideoPlayer = ({ url, camId }) => {
           autoPlay
           crossOrigin="anonymous"
         />
-        {loading && !streamEnded && (
+        {loading && (
           <div style={{
             position: 'absolute',
             top: '50%',
@@ -176,42 +152,9 @@ const VideoPlayer = ({ url, camId }) => {
             color: 'white',
             background: 'rgba(0,0,0,0.7)',
             padding: '10px 20px',
-            borderRadius: '5px',
-            zIndex: 10
+            borderRadius: '5px'
           }}>
             Loading stream...
-          </div>
-        )}
-        {streamEnded && (
-          <div style={{
-            position: 'absolute',
-            top: '0',
-            left: '0',
-            right: '0',
-            bottom: '0',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            background: 'rgba(0,0,0,0.85)',
-            textAlign: 'center',
-            zIndex: 20
-          }}>
-            <div style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Stream has ended</div>
-            <button
-              onClick={() => {
-                setStreamEnded(false);
-                setLoading(true);
-                if (videoRef.current) {
-                  videoRef.current.load();
-                }
-              }}
-              className="live-button"
-              style={{ padding: '8px 16px', borderRadius: '20px' }}
-            >
-              Reload
-            </button>
           </div>
         )}
         {error && (
