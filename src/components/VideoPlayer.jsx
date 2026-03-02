@@ -25,9 +25,9 @@ const VideoPlayer = ({ url, camId }) => {
           // Robust settings for AWS KVS / Live streams with short fragments
           liveSyncDurationCount: 6, // Start 6 segments from the live edge (more safety)
           liveMaxLatencyDurationCount: 12, // Allow more drift before seeking
-          maxBufferLength: 10,
-          maxMaxBufferLength: 20,
-          maxBufferSize: 30 * 1000 * 1000,
+          maxBufferLength: 30,             // Must be larger than (liveSyncDurationCount * 2s) to prevent stalling
+          maxMaxBufferLength: 60,
+          maxBufferSize: 60 * 1000 * 1000,
           // Nudge settings help skip over "stuck" or looping points
           nudgeOffset: 0.2,
           nudgeMaxRetry: 10,
