@@ -20,15 +20,16 @@ const VideoPlayer = ({ url, camId }) => {
 
         hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: false,
+          lowLatencyMode: true, // Enable low latency mode for smoother live streaming
           debug: false,
-          // Extra buffer settings for AWS KVS 1s fragments
-          liveSyncDurationCount: 5,
-          liveMaxLatencyDurationCount: 10,
-          // Standard buffering - let HLS.js handle it naturally
-          maxBufferLength: 30,
-          maxMaxBufferLength: 60,
-          maxBufferSize: 60 * 1000 * 1000,
+          // Optimization for live streaming to prevent looping/jumping
+          liveSyncDurationCount: 3, // Start 3 segments from the live edge
+          liveMaxLatencyDurationCount: 5, // Allow up to 5 segments behind live edge before seeking
+          maxBufferLength: 10, // Keep buffer small for live streams
+          maxMaxBufferLength: 20,
+          maxBufferSize: 30 * 1000 * 1000,
+          manifestLoadingRetryDelay: 500,
+          manifestLoadingMaxRetry: 10,
           // CORS settings
           xhrSetup: function (xhr, url) {
             xhr.withCredentials = false;
