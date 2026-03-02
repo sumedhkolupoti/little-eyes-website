@@ -153,7 +153,7 @@ const VideoPlayer = ({ url, camId }) => {
       <div className="video-wrapper">
         <video
           ref={videoRef}
-          controls={false}
+          controls={true}
           muted
           playsInline
           autoPlay
