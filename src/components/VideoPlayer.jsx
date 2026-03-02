@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import Hls from 'hls.js';
-import { AlertTriangle } from 'lucide-react';
+import React, { useEffect, useRef, useState } from "react";
+import Hls from "hls.js";
+import { AlertTriangle } from "lucide-react";
 
 const VideoPlayer = ({ url, camId }) => {
   const videoRef = useRef(null);
@@ -22,6 +22,9 @@ const VideoPlayer = ({ url, camId }) => {
           enableWorker: true,
           lowLatencyMode: false,
           debug: false,
+          // Extra buffer settings for AWS KVS 1s fragments
+          liveSyncDurationCount: 5,
+          liveMaxLatencyDurationCount: 10,
           // Standard buffering - let HLS.js handle it naturally
           maxBufferLength: 30,
           maxMaxBufferLength: 60,
@@ -31,25 +34,34 @@ const VideoPlayer = ({ url, camId }) => {
             xhr.withCredentials = false;
           },
           fetchSetup: function (context, initParams) {
-            initParams.mode = 'cors';
-            initParams.credentials = 'omit';
+            initParams.mode = "cors";
+            initParams.credentials = "omit";
             return new Request(context.url, initParams);
-          }
+          },
         });
 
         hls.on(Hls.Events.ERROR, (event, data) => {
-          console.error(`[Cam ${camId}] HLS.js error:`, data.type, data.details, data);
+          console.error(
+            `[Cam ${camId}] HLS.js error:`,
+            data.type,
+            data.details,
+            data,
+          );
 
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                console.error(`[Cam ${camId}] Network error - attempting recovery...`);
-                setError('Network error - retrying...');
+                console.error(
+                  `[Cam ${camId}] Network error - attempting recovery...`,
+                );
+                setError("Network error - retrying...");
                 setTimeout(() => hls.startLoad(), 1000);
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
-                console.error(`[Cam ${camId}] Media error - attempting recovery...`);
-                setError('Media error - recovering...');
+                console.error(
+                  `[Cam ${camId}] Media error - attempting recovery...`,
+                );
+                setError("Media error - recovering...");
                 hls.recoverMediaError();
                 break;
               default:
@@ -65,9 +77,9 @@ const VideoPlayer = ({ url, camId }) => {
           console.log(`[Cam ${camId}] Manifest parsed:`, data);
           setLoading(false);
           setError(null);
-          video.play().catch(e => {
+          video.play().catch((e) => {
             console.error(`[Cam ${camId}] Auto-play blocked:`, e);
-            setError('Click to play');
+            setError("Click to play");
           });
         });
 
@@ -81,30 +93,29 @@ const VideoPlayer = ({ url, camId }) => {
 
         hls.loadSource(url);
         hls.attachMedia(video);
-
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
         // For Safari (native HLS support)
         console.log(`[Cam ${camId}] Using native HLS support`);
         video.src = url;
-        video.crossOrigin = 'anonymous';
+        video.crossOrigin = "anonymous";
 
-        video.addEventListener('loadedmetadata', () => {
+        video.addEventListener("loadedmetadata", () => {
           console.log(`[Cam ${camId}] Metadata loaded`);
           setLoading(false);
-          video.play().catch(e => {
+          video.play().catch((e) => {
             console.error(`[Cam ${camId}] Auto-play blocked:`, e);
-            setError('Click to play');
+            setError("Click to play");
           });
         });
 
-        video.addEventListener('error', (e) => {
+        video.addEventListener("error", (e) => {
           console.error(`[Cam ${camId}] Video error:`, e);
-          setError('Failed to load stream');
+          setError("Failed to load stream");
           setLoading(false);
         });
       } else {
         console.error(`[Cam ${camId}] HLS not supported in this browser`);
-        setError('HLS not supported in this browser');
+        setError("HLS not supported in this browser");
         setLoading(false);
       }
     }
@@ -144,33 +155,37 @@ const VideoPlayer = ({ url, camId }) => {
           crossOrigin="anonymous"
         />
         {loading && (
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            color: 'white',
-            background: 'rgba(0,0,0,0.7)',
-            padding: '10px 20px',
-            borderRadius: '5px'
-          }}>
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              color: "white",
+              background: "rgba(0,0,0,0.7)",
+              padding: "10px 20px",
+              borderRadius: "5px",
+            }}
+          >
             Loading stream...
           </div>
         )}
         {error && (
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            color: '#ff4444',
-            background: 'rgba(0,0,0,0.9)',
-            padding: '15px 25px',
-            borderRadius: '8px',
-            textAlign: 'center',
-            maxWidth: '80%'
-          }}>
-            <AlertTriangle size={24} style={{ marginBottom: '8px' }} />
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              color: "#ff4444",
+              background: "rgba(0,0,0,0.9)",
+              padding: "15px 25px",
+              borderRadius: "8px",
+              textAlign: "center",
+              maxWidth: "80%",
+            }}
+          >
+            <AlertTriangle size={24} style={{ marginBottom: "8px" }} />
             <div>{error}</div>
           </div>
         )}
