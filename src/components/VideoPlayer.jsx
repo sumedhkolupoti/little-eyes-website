@@ -22,29 +22,30 @@ const VideoPlayer = ({ url, camId }) => {
 
         hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: true,           // Re-enable for live streams
+          lowLatencyMode: true,
           debug: false,
-          // Live stream optimization - reduced buffering
-          maxBufferLength: 10,            // Only buffer 10s (prevents old footage)
-          maxMaxBufferLength: 20,         // Max 20s buffer
-          maxBufferSize: 10 * 1000 * 1000, // 10MB buffer
-          maxBufferHole: 0.5,             // Tolerate small gaps
-          liveSyncDurationCount: 3,       // Stay close to live edge
-          liveMaxLatencyDurationCount: 10, // Max drift from live edge
-          // Faster retries for live
-          manifestLoadingTimeOut: 10000,   // 10s timeout
+          // Ultra-aggressive live stream settings
+          maxBufferLength: 4,             // Only 4s buffer
+          maxMaxBufferLength: 8,          // Max 8s buffer  
+          maxBufferSize: 4 * 1000 * 1000, // 4MB buffer
+          maxBufferHole: 0.2,             // Minimal gap tolerance
+          liveSyncDurationCount: 2,       // Very close to live edge (2 segments)
+          liveMaxLatencyDurationCount: 4, // Max 4 segments behind
+          backBufferLength: 0,            // No back buffer (don't keep old segments)
+          // Faster retries
+          manifestLoadingTimeOut: 10000,
           manifestLoadingMaxRetry: 3,
           manifestLoadingRetryDelay: 1000,
           levelLoadingTimeOut: 10000,
           levelLoadingMaxRetry: 3,
           levelLoadingRetryDelay: 1000,
-          fragLoadingTimeOut: 20000,
+          fragLoadingTimeOut: 15000,
           fragLoadingMaxRetry: 3,
           fragLoadingRetryDelay: 1000,
           // CORS settings
           xhrSetup: function (xhr, url) {
             xhr.withCredentials = false;
-            xhr.timeout = 20000;
+            xhr.timeout = 15000;
           },
           fetchSetup: function (context, initParams) {
             initParams.mode = 'cors';
@@ -86,6 +87,19 @@ const VideoPlayer = ({ url, camId }) => {
             console.error(`[Cam ${camId}] Auto-play blocked:`, e);
             setError('Click to play');
           });
+        });
+
+        // Force jump to live edge when buffering causes drift
+        hls.on(Hls.Events.FRAG_LOADED, () => {
+          if (video.buffered.length > 0) {
+            const bufferEnd = video.buffered.end(video.buffered.length - 1);
+            const currentTime = video.currentTime;
+            // If we're more than 2 seconds behind live edge, jump forward
+            if (bufferEnd - currentTime > 2) {
+              console.log(`[Cam ${camId}] Jumping to live edge: ${currentTime.toFixed(2)}s -> ${bufferEnd.toFixed(2)}s`);
+              video.currentTime = bufferEnd - 0.3; // Jump to live minus 0.3s buffer
+            }
+          }
         });
 
         // Listen for stream end (VOD or live end)
