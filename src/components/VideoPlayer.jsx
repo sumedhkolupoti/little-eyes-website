@@ -22,16 +22,11 @@ const VideoPlayer = ({ url, camId }) => {
           enableWorker: true,
           lowLatencyMode: false, // Disabling LL-mode as it can cause jumps with AWS KVS 1s fragments
           debug: false,
-          // Robust settings for AWS KVS / Live streams with short fragments
-          liveSyncDurationCount: 8, // Start 8 segments from the live edge (more safety)
-          liveMaxLatencyDurationCount: 16, // Allow more drift before seeking
-          maxBufferLength: 20,         
-          maxMaxBufferLength: 40,
+          // Let HLS.js naturally manage the live edge with our new 4s fragments
+          liveDurationInfinity: true, 
+          maxBufferLength: 60,         
+          maxMaxBufferLength: 120,
           maxBufferSize: 60 * 1000 * 1000,
-          // Nudge settings help skip over "stuck" or looping points
-          nudgeOffset: 0.2,
-          nudgeMaxRetry: 10,
-          backStep: 0, // Prevent stepping back
           manifestLoadingRetryDelay: 500,
           manifestLoadingMaxRetry: 10,
           // CORS settings
