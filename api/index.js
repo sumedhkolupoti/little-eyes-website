@@ -1,8 +1,8 @@
-const express = require('express');
-const { MongoClient } = require('mongodb');
-const cors = require('cors');
-const { customAlphabet } = require('nanoid');
-require('dotenv').config();
+import express from 'express';
+import { MongoClient } from 'mongodb';
+import cors from 'cors';
+import { customAlphabet } from 'nanoid';
+import 'dotenv/config';
 
 const app = express();
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/";
@@ -198,4 +198,4 @@ app.get('/:short_code', async (req, res) => {
 });
 
 // Export for Vercel
-module.exports = app;
+export default app;
