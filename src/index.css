@@ -43,24 +43,27 @@ h3 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
+  padding: 12px 24px;
   background: var(--glass);
   backdrop-filter: blur(10px);
   border-radius: 20px;
   box-shadow: var(--shadow);
   border: 1px solid rgba(255, 255, 255, 0.18);
+  min-height: 70px;
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  height: 40px;
 }
 
 .logo img {
-  height: 60px;
+  height: 100%;
   width: auto;
+  max-width: 180px;
   object-fit: contain;
+  display: block;
 }
 
 .client-info {
