@@ -94,7 +94,14 @@ h3 {
 
 @media (max-width: 850px) {
   .video-grid.multi {
-    grid-template-columns: 1fr !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1.5rem;
+  }
+
+  .video-card {
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   .app-container {
