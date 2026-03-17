@@ -37,6 +37,7 @@ async function dbMiddleware(req, res, next) {
         req.urlsCollection = coll;
         next();
     } catch (err) {
+        console.error("Database connection failed:", err);
         res.status(500).json({ error: "Database connection failed" });
     }
 }
