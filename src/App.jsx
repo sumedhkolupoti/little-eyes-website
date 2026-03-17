@@ -50,8 +50,8 @@ function App() {
         ))}
       </main>
 
-      <footer style={{ textAlign: 'center', padding: '1rem', color: '#888', fontFamily: 'Comic Neue' }}>
-        powered by AEYE
+      <footer className="footer">
+        powered by <a href="https://aeye.camera/" target="_blank" rel="noopener noreferrer">Aeye.Camera</a>
       </footer>
     </div>
   );
