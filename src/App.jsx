@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import VideoPlayer from './components/VideoPlayer';
-import { Eye, HelpCircle } from 'lucide-react';
+import { HelpCircle } from 'lucide-react';
 
 function App() {
   const queryParams = new URLSearchParams(window.location.search);
@@ -40,8 +40,7 @@ function App() {
     <div className="app-container">
       <header className="header">
         <div className="logo">
-          <Eye size={40} />
-          <span>Little Eyes</span>
+          <img src="/logo.png" alt="Aeye Logo" />
         </div>
       </header>
 
