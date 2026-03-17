@@ -1,0 +1,12 @@
+{
+    "rewrites": [
+        {
+            "source": "/api/shorten",
+            "destination": "/api/index.js"
+        },
+        {
+            "source": "/:short_code([a-zA-Z0-9]{6})",
+            "destination": "/api/index.js"
+        }
+    ]
+}

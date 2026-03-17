@@ -10,8 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
     "hls.js": "^1.6.15",
     "lucide-react": "^0.575.0",
+    "mongodb": "^7.1.0",
+    "nanoid": "^5.1.7",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
