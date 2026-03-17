@@ -4,12 +4,10 @@ import { AlertTriangle } from "lucide-react";
 
 const VideoPlayer = ({ url, camId }) => {
   const videoRef = useRef(null);
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let hls;
-    setError(null);
     setLoading(true);
 
     if (videoRef.current) {
@@ -20,16 +18,14 @@ const VideoPlayer = ({ url, camId }) => {
 
         hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: false, // Disabling LL-mode as it can cause jumps with AWS KVS 1s fragments
+          lowLatencyMode: false,
           debug: false,
-          // Let HLS.js naturally manage the live edge with our new 4s fragments
-          liveDurationInfinity: true, 
-          maxBufferLength: 60,         
+          liveDurationInfinity: true,
+          maxBufferLength: 60,
           maxMaxBufferLength: 120,
           maxBufferSize: 60 * 1000 * 1000,
           manifestLoadingRetryDelay: 500,
           manifestLoadingMaxRetry: 10,
-          // CORS settings
           xhrSetup: function (xhr, url) {
             xhr.withCredentials = false;
           },
@@ -41,33 +37,21 @@ const VideoPlayer = ({ url, camId }) => {
         });
 
         hls.on(Hls.Events.ERROR, (event, data) => {
-          console.error(
-            `[Cam ${camId}] HLS.js error:`,
-            data.type,
-            data.details,
-            data,
-          );
+          console.error(`[Cam ${camId}] HLS.js error:`, data.type, data.details, data);
 
           if (data.fatal) {
+            setLoading(true); // Keep showing loading on fatal errors during recovery
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                console.error(
-                  `[Cam ${camId}] Network error - attempting recovery...`,
-                );
-                setError("Network error - retrying...");
+                console.error(`[Cam ${camId}] Network error - attempting recovery...`);
                 setTimeout(() => hls.startLoad(), 1000);
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
-                console.error(
-                  `[Cam ${camId}] Media error - attempting recovery...`,
-                );
-                setError("Media error - recovering...");
+                console.error(`[Cam ${camId}] Media error - attempting recovery...`);
                 hls.recoverMediaError();
                 break;
               default:
-                console.error(`[Cam ${camId}] Fatal error - cannot recover`);
-                setError(`Stream error: ${data.details}`);
-                setLoading(false);
+                console.error(`[Cam ${camId}] Fatal error - cannot recover automatically`);
                 break;
             }
           }
@@ -76,15 +60,14 @@ const VideoPlayer = ({ url, camId }) => {
         hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
           console.log(`[Cam ${camId}] Manifest parsed:`, data);
           setLoading(false);
-          setError(null);
           video.play().catch((e) => {
             console.error(`[Cam ${camId}] Auto-play blocked:`, e);
-            setError("Click to play");
           });
         });
 
         hls.on(Hls.Events.MANIFEST_LOADING, () => {
           console.log(`[Cam ${camId}] Loading manifest...`);
+          setLoading(true);
         });
 
         hls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
@@ -94,7 +77,6 @@ const VideoPlayer = ({ url, camId }) => {
         hls.loadSource(url);
         hls.attachMedia(video);
       } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        // For Safari (native HLS support)
         console.log(`[Cam ${camId}] Using native HLS support`);
         video.src = url;
         video.crossOrigin = "anonymous";
@@ -104,19 +86,16 @@ const VideoPlayer = ({ url, camId }) => {
           setLoading(false);
           video.play().catch((e) => {
             console.error(`[Cam ${camId}] Auto-play blocked:`, e);
-            setError("Click to play");
           });
         });
 
         video.addEventListener("error", (e) => {
           console.error(`[Cam ${camId}] Video error:`, e);
-          setError("Failed to load stream");
-          setLoading(false);
+          setLoading(true); // Show loading on error
         });
       } else {
         console.error(`[Cam ${camId}] HLS not supported in this browser`);
-        setError("HLS not supported in this browser");
-        setLoading(false);
+        setLoading(true);
       }
     }
 
@@ -168,25 +147,6 @@ const VideoPlayer = ({ url, camId }) => {
             }}
           >
             Loading stream...
-          </div>
-        )}
-        {error && (
-          <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              color: "#ff4444",
-              background: "rgba(0,0,0,0.9)",
-              padding: "15px 25px",
-              borderRadius: "8px",
-              textAlign: "center",
-              maxWidth: "80%",
-            }}
-          >
-            <AlertTriangle size={24} style={{ marginBottom: "8px" }} />
-            <div>{error}</div>
           </div>
         )}
       </div>
