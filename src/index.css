@@ -89,9 +89,21 @@ h3 {
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
 }
 
-@media (max-width: 600px) {
+@media (max-width: 850px) {
   .video-grid.multi {
     grid-template-columns: 1fr;
+  }
+
+  .app-container {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .header {
+    flex-direction: column;
+    height: auto;
+    padding: 1rem;
+    gap: 1rem;
   }
 }
 
