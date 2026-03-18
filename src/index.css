@@ -231,6 +231,26 @@ video {
   transition: opacity 0.3s ease;
 }
 
+.expiry-timer {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  color: var(--primary);
+  background: rgba(255, 107, 107, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 107, 107, 0.2);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.expiry-timer.expired {
+  background: #ff0000;
+  color: white;
+  animation: none;
+}
+
 .footer a:hover {
   opacity: 0.8;
 }

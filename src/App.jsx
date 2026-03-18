@@ -22,6 +22,36 @@ function App() {
     return cameras;
   }, [camsCount]);
 
+  const expiryTime = queryParams.get('expires');
+  const [timeLeft, setTimeLeft] = React.useState('');
+
+  React.useEffect(() => {
+    if (!expiryTime) return;
+
+    const calculateTimeLeft = () => {
+      const difference = new Date(expiryTime) - new Date();
+      if (difference <= 0) {
+        setTimeLeft('Expired');
+        return;
+      }
+
+      const hours = Math.floor((difference / (1000 * 60 * 60)));
+      const minutes = Math.floor((difference / 1000 / 60) % 60);
+      const seconds = Math.floor((difference / 1000) % 60);
+
+      const parts = [];
+      if (hours > 0) parts.push(String(hours).padStart(2, '0'));
+      parts.push(String(minutes).padStart(2, '0'));
+      parts.push(String(seconds).padStart(2, '0'));
+
+      setTimeLeft(parts.join(':'));
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timer);
+  }, [expiryTime]);
+
   const gridClass = camsCount > 1 ? 'video-grid multi' : 'video-grid single';
 
   if (cams.length === 0) {
@@ -42,6 +72,11 @@ function App() {
         <div className="logo">
           <img src="/logo.png" alt="Aeye Logo" />
         </div>
+        {timeLeft && (
+          <div className={`expiry-timer ${timeLeft === 'Expired' ? 'expired' : ''}`}>
+            {timeLeft === 'Expired' ? 'Link Expired' : `Expires in: ${timeLeft}`}
+          </div>
+        )}
       </header>
 
       <main className={gridClass}>

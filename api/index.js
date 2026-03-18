@@ -175,6 +175,9 @@ app.get('/:short_code', async (req, res) => {
         }
 
         if (existing.mask_url) {
+            const expiryParam = existing.expiry_time ? `&expires=${encodeURIComponent(existing.expiry_time.toISOString())}` : '';
+            const maskedUrl = `${existing.long_url}${existing.long_url.includes('?') ? '' : '?'}${expiryParam}`;
+
             return res.send(`
                 <!DOCTYPE html>
                 <html>
@@ -189,7 +192,7 @@ app.get('/:short_code', async (req, res) => {
                     </style>
                 </head>
                 <body>
-                    <iframe src="${existing.long_url}"></iframe>
+                    <iframe src="${maskedUrl}"></iframe>
                 </body>
                 </html>
             `);
