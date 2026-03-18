@@ -74,7 +74,7 @@ function App() {
         </div>
         {timeLeft && (
           <div className={`expiry-timer ${timeLeft === 'Expired' ? 'expired' : ''}`}>
-            {timeLeft === 'Expired' ? 'Link Expired' : `Expires in: ${timeLeft}`}
+            {timeLeft === 'Expired' ? 'Link Expired' : `Link valid until ${timeLeft}`}
           </div>
         )}
       </header>
