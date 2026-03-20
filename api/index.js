@@ -175,8 +175,13 @@ app.get('/:short_code', async (req, res) => {
         }
 
         if (existing.mask_url) {
-            const expiryParam = existing.expiry_time ? `&expires=${encodeURIComponent(existing.expiry_time.toISOString())}` : '';
-            const maskedUrl = `${existing.long_url}${existing.long_url.includes('?') ? '' : '?'}${expiryParam}`;
+            const expiryParam = existing.expiry_time ? `expires=${encodeURIComponent(existing.expiry_time.toISOString())}` : '';
+
+            let maskedUrl = existing.long_url;
+            if (expiryParam) {
+                const separator = maskedUrl.includes('?') ? '&' : '?';
+                maskedUrl = `${maskedUrl}${separator}${expiryParam}`;
+            }
 
             return res.send(`
                 <!DOCTYPE html>
@@ -187,14 +192,14 @@ app.get('/:short_code', async (req, res) => {
                     <title>iklo</title>
                     <link rel="icon" type="image/png" href="/favicon.png" />
                     <style>
-                        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-                        iframe { width: 100%; height: 100%; border: none; }
+                        body, html { margin: 0; padding: 0; height: 100%; overflow-y: auto; }
+                        iframe { width: 100%; height: 100%; border: none; display: block; }
                     </style>
                 </head>
                 <body>
                     <iframe src="${maskedUrl}"></iframe>
                 </body>
-                </html>
+                </html>  
             `);
         }
 

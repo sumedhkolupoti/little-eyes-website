@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import VideoPlayer from './components/VideoPlayer';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, ChevronLeft, LayoutGrid } from 'lucide-react';
 
 function App() {
   const queryParams = new URLSearchParams(window.location.search);
@@ -12,16 +12,19 @@ function App() {
   const camsCount = parseInt(queryParams.get('cams')) || 1;
 
   const cams = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const count = parseInt(params.get('cams')) || 1;
     const cameras = [];
-    for (let i = 1; i <= camsCount; i++) {
-      const url = queryParams.get(`url${i}`);
+    for (let i = 1; i <= count; i++) {
+      const url = params.get(`url${i}`);
       if (url) {
         cameras.push({ id: i, url });
       }
     }
     return cameras;
-  }, [camsCount]);
+  }, []); // Only compute once on mount
 
+  const [selectedCamId, setSelectedCamId] = useState(null);
   const expiryTime = queryParams.get('expires');
   const [timeLeft, setTimeLeft] = React.useState('');
 
@@ -29,20 +32,29 @@ function App() {
     if (!expiryTime) return;
 
     const calculateTimeLeft = () => {
-      const difference = new Date(expiryTime) - new Date();
+      // Robust UTC Parsing: Ensure any ISO-like string is treated as UTC
+      let expiryStr = expiryTime;
+      if (expiryStr.includes('T') && !expiryStr.endsWith('Z') && !expiryStr.includes('+')) {
+        expiryStr += 'Z';
+      }
+
+      const expiryDate = new Date(expiryStr);
+      const difference = expiryDate.getTime() - Date.now();
+
       if (difference <= 0) {
         setTimeLeft('Expired');
         return;
       }
 
-      const hours = Math.floor((difference / (1000 * 60 * 60)));
-      const minutes = Math.floor((difference / 1000 / 60) % 60);
+      const hours = Math.floor(difference / (1000 * 60 * 60));
+      const minutes = Math.floor((difference / (1000 * 60)) % 60);
       const seconds = Math.floor((difference / 1000) % 60);
 
-      const parts = [];
-      if (hours > 0) parts.push(String(hours).padStart(2, '0'));
-      parts.push(String(minutes).padStart(2, '0'));
-      parts.push(String(seconds).padStart(2, '0'));
+      const parts = [
+        String(hours).padStart(2, '0'),
+        String(minutes).padStart(2, '0'),
+        String(seconds).padStart(2, '0')
+      ];
 
       setTimeLeft(parts.join(':'));
     };
@@ -51,8 +63,6 @@ function App() {
     const timer = setInterval(calculateTimeLeft, 1000);
     return () => clearInterval(timer);
   }, [expiryTime]);
-
-  const gridClass = camsCount > 1 ? 'video-grid multi' : 'video-grid single';
 
   if (cams.length === 0) {
     return (
@@ -66,11 +76,21 @@ function App() {
     );
   }
 
+  const selectedCam = cams.find(cam => cam.id === selectedCamId);
+
   return (
     <div className="app-container">
       <header className="header">
-        <div className="logo">
-          <img src="/logo.png" alt="Aeye Logo" />
+        <div className="header-left">
+          {selectedCamId && (
+            <button className="back-button" onClick={() => setSelectedCamId(null)}>
+              <ChevronLeft size={20} />
+              <span>Back to Cameras</span>
+            </button>
+          )}
+          <div className="logo">
+            <img src="/logo.png" alt="Aeye Logo" />
+          </div>
         </div>
         {timeLeft && (
           <div className={`expiry-timer ${timeLeft === 'Expired' ? 'expired' : ''}`}>
@@ -79,10 +99,34 @@ function App() {
         )}
       </header>
 
-      <main className={gridClass}>
-        {cams.map((cam) => (
-          <VideoPlayer key={cam.id} url={cam.url} camId={cam.id} />
-        ))}
+      <main className="main-content">
+        {!selectedCamId ? (
+          <div className="selector-view">
+            <div className="selector-header">
+              <h1>Select a Camera to Watch</h1>
+              <p>Choose one of the {cams.length} available cameras</p>
+            </div>
+            <div className="video-grid multi">
+              {cams.map((cam) => (
+                <div
+                  key={cam.id}
+                  className="camera-card clickable"
+                  onClick={() => setSelectedCamId(cam.id)}
+                >
+                  <VideoPlayer url={cam.url} camId={cam.id} isThumbnail={true} />
+                  <div className="cam-footer">
+                    <span className="cam-label">Camera {cam.id}</span>
+                    <span className="view-badge">View Live</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="single-view">
+            <VideoPlayer url={selectedCam.url} camId={selectedCam.id} />
+          </div>
+        )}
       </main>
 
       <footer className="footer">
