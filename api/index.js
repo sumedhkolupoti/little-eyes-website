@@ -289,8 +289,8 @@ app.get('/:short_code', async (req, res) => {
         if (existing.expiry_time && existing.expiry_time < now) {
             res.setHeader('Content-Type', 'text/html');
             return res.status(410).send(renderErrorPage(
-                "Oops! Link timedout for Security",
-                "This shared camera link has expired to keep things secure. Please request a new one if you feel this is an error",
+                "Oops! Link timedout",
+                "This shared camera link has expired. Please request a new one if you feel this is an error",
                 410
             ));
         }
