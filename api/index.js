@@ -277,11 +277,6 @@ app.get('/:short_code', async (req, res) => {
     const urlsCollection = req.urlsCollection;
     const { short_code } = req.params;
 
-    // Only handle 6-character codes to minimize conflict with web routes
-    if (short_code.length !== 6) {
-        return res.status(404).json({ error: "Not found" });
-    }
-
     const existing = await urlsCollection.findOne({ _id: short_code });
 
     if (existing) {
@@ -328,8 +323,8 @@ app.get('/:short_code', async (req, res) => {
     } else {
         res.setHeader('Content-Type', 'text/html');
         res.status(404).send(renderErrorPage(
-            "Link Not Found",
-            "We couldn't find the camera link you're looking for. It may have been deleted or the URL is incorrect.",
+            "Oops! Invalid Link",
+            "The camera link you're trying to access is invalid or has been removed. Please check the URL and try again.",
             404
         ));
     }
