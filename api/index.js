@@ -56,6 +56,122 @@ function parseIsoDate(dateStr) {
     }
 }
 
+function renderErrorPage(title, message, statusCode = 404) {
+    const isExpired = statusCode === 410;
+    const accentColor = isExpired ? '#FF6B6B' : '#4ECDC4';
+
+    return `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>${title} | iklo</title>
+            <link rel="icon" type="image/png" href="/favicon.png" />
+            <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+            <style>
+                :root {
+                    --primary: #FF6B6B;
+                    --secondary: #4ECDC4;
+                    --text: #2F3E46;
+                    --glass: rgba(255, 255, 255, 0.84);
+                    --shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.1);
+                }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                    font-family: 'Inter', sans-serif;
+                    background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+                    color: var(--text);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 100vh;
+                    padding: 20px;
+                }
+                .card {
+                    background: var(--glass);
+                    backdrop-filter: blur(12px);
+                    -webkit-backdrop-filter: blur(12px);
+                    border-radius: 32px;
+                    padding: 3.5rem 2rem;
+                    box-shadow: var(--shadow);
+                    border: 1px solid rgba(255, 255, 255, 0.3);
+                    max-width: 500px;
+                    width: 100%;
+                    text-align: center;
+                    animation: slideUp 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+                }
+                .logo {
+                    height: 50px;
+                    width: auto;
+                    max-width: 180px;
+                    object-fit: contain;
+                    margin-bottom: 2rem;
+                    display: inline-block;
+                }
+                .icon-box {
+                    width: 80px;
+                    height: 80px;
+                    background: ${accentColor}15;
+                    border-radius: 24px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 1.5rem;
+                    color: ${accentColor};
+                    font-size: 2.5rem;
+                }
+                h1 {
+                    font-family: 'Comic Neue', cursive;
+                    font-size: 2.2rem;
+                    margin-bottom: 1rem;
+                    color: var(--text);
+                }
+                p {
+                    font-size: 1.1rem;
+                    line-height: 1.6;
+                    margin-bottom: 1rem;
+                    color: #5A6D77;
+                }
+                .footer {
+                    margin-top: 3rem;
+                    font-family: 'Comic Neue', cursive;
+                    font-weight: 700;
+                    color: #00A676;
+                    font-size: 1rem;
+                }
+                .footer a {
+                    color: #00A676;
+                    text-decoration: none;
+                    border-bottom: 2px solid transparent;
+                    transition: all 0.3s ease;
+                }
+                .footer a:hover {
+                    border-bottom-color: #00A676;
+                }
+                @keyframes slideUp {
+                    from { opacity: 0; transform: translateY(30px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <img src="https://live.aeye.camera/logo.png" alt="iklo Logo" class="logo">
+                <div class="icon-box">
+                    ${isExpired ? '⌛' : '🔍'}
+                </div>
+                <h1>${title}</h1>
+                <p>${message}</p>
+                <div class="footer">
+                    powered by <a href="https://aeye.camera/">aeye.camera</a>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+}
+
 // Shortener Endpoint
 app.post('/api/shorten', async (req, res) => {
     const urlsCollection = req.urlsCollection;
@@ -171,7 +287,12 @@ app.get('/:short_code', async (req, res) => {
     if (existing) {
         const now = new Date();
         if (existing.expiry_time && existing.expiry_time < now) {
-            return res.status(410).json({ error: "This short link has expired" });
+            res.setHeader('Content-Type', 'text/html');
+            return res.status(410).send(renderErrorPage(
+                "Link Expired",
+                "This shared camera link has expired for security reasons. Please request a new link.",
+                410
+            ));
         }
 
         if (existing.mask_url) {
@@ -205,7 +326,12 @@ app.get('/:short_code', async (req, res) => {
 
         return res.redirect(existing.long_url);
     } else {
-        res.status(404).json({ error: "Short URL not found" });
+        res.setHeader('Content-Type', 'text/html');
+        res.status(404).send(renderErrorPage(
+            "Link Not Found",
+            "We couldn't find the camera link you're looking for. It may have been deleted or the URL is incorrect.",
+            404
+        ));
     }
 });
 
