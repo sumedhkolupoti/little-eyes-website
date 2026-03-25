@@ -164,7 +164,7 @@ function renderErrorPage(title, message, statusCode = 404) {
                 <h1>${title}</h1>
                 <p>${message}</p>
                 <div class="footer">
-                    powered by <a href="https://aeye.camera/">aeye.camera</a>
+                    Powered by <a href="https://aeye.camera/">aeye.camera</a>
                 </div>
             </div>
         </body>

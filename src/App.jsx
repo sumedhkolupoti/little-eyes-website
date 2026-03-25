@@ -46,17 +46,14 @@ function App() {
         return;
       }
 
-      const hours = Math.floor(difference / (1000 * 60 * 60));
-      const minutes = Math.floor((difference / (1000 * 60)) % 60);
-      const seconds = Math.floor((difference / 1000) % 60);
+      // Format as "2:30 pm"
+      const formattedTime = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      }).format(expiryDate).toLowerCase();
 
-      const parts = [
-        String(hours).padStart(2, '0'),
-        String(minutes).padStart(2, '0'),
-        String(seconds).padStart(2, '0')
-      ];
-
-      setTimeLeft(parts.join(':'));
+      setTimeLeft(formattedTime);
     };
 
     calculateTimeLeft();
@@ -130,7 +127,7 @@ function App() {
       </main>
 
       <footer className="footer">
-        powered by <a href="https://aeye.camera/" target="_blank" rel="noopener noreferrer">Aeye.Camera</a>
+        Powered by <a href="https://aeye.camera/" target="_blank" rel="noopener noreferrer">Aeye.Camera</a>
       </footer>
     </div>
   );
