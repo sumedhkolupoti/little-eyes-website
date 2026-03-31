@@ -5,6 +5,10 @@
             "destination": "/api/index.js"
         },
         {
+            "source": "/api/subscription-check",
+            "destination": "/api/index.js"
+        },
+        {
             "source": "/:short_code([a-zA-Z0-9]{1,12})",
             "destination": "/api/index.js"
         }

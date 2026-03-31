@@ -12,18 +12,21 @@ app.use(express.json());
 
 // MongoDB Setup
 const client = new MongoClient(MONGO_URI);
-let db, urlsCollection;
+let db, urlsCollection, subscriptionsCollection;
 
 async function connectDB() {
-    if (db) return { db, urlsCollection };
+    if (db) return { db, urlsCollection, subscriptionsCollection };
     try {
         await client.connect();
         db = client.db("url_shortener");
         urlsCollection = db.collection("urls");
+        subscriptionsCollection = db.collection("subscriptions");
 
         // Create indexes
         await urlsCollection.createIndex({ long_url: 1, application_id: 1, base_url: 1 });
-        return { db, urlsCollection };
+        await subscriptionsCollection.createIndex({ organization_id: 1, location_id: 1 });
+        
+        return { db, urlsCollection, subscriptionsCollection };
     } catch (err) {
         console.error("MongoDB connection error:", err);
         throw err;
@@ -33,8 +36,9 @@ async function connectDB() {
 // Middleware to ensure DB is connected
 async function dbMiddleware(req, res, next) {
     try {
-        const { urlsCollection: coll } = await connectDB();
+        const { urlsCollection: coll, subscriptionsCollection: subColl } = await connectDB();
         req.urlsCollection = coll;
+        req.subscriptionsCollection = subColl;
         next();
     } catch (err) {
         console.error("Database connection failed:", err);
@@ -270,6 +274,29 @@ app.post('/api/shorten', async (req, res) => {
         service_type,
         cam_count
     });
+});
+
+// Subscription Check Endpoint
+app.get('/api/subscription-check', async (req, res) => {
+    const { orgId, locId } = req.query;
+
+    if (!orgId || !locId) {
+        return res.status(400).json({ error: "orgId and locId are required as query parameters" });
+    }
+
+    try {
+        const subscription = await req.subscriptionsCollection.findOne({ 
+            organization_id: orgId, 
+            location_id: locId 
+        });
+
+        res.json({ 
+            subscribed: subscription ? !!subscription.subscribed : false 
+        });
+    } catch (err) {
+        console.error("Error checking subscription:", err);
+        res.status(500).json({ error: "Internal server error" });
+    }
 });
 
 // Short Code Resolver
