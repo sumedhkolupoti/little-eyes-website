@@ -275,12 +275,13 @@ app.post('/api/shorten', async (req, res) => {
         mask_url
     });
 
-    let short_code, short_url;
+    let short_code, short_url, expiry_time = null;
     if (existing) {
         const now = new Date();
         if (!existing.expiry_time || existing.expiry_time > now) {
             short_code = existing._id;
             short_url = existing.short_url;
+            expiry_time = existing.expiry_time;
         }
     }
 
@@ -296,7 +297,7 @@ app.post('/api/shorten', async (req, res) => {
         const now = new Date();
 
         // Calculate expiry
-        let expiry_time = parseIsoDate(client_expiry_time_str);
+        expiry_time = parseIsoDate(client_expiry_time_str);
         if (!expiry_time && (expiry_days || expiry_hours || expiry_minutes || expiry_seconds)) {
             expiry_time = new Date(now.getTime());
             expiry_time.setDate(expiry_time.getDate() + parseInt(expiry_days));
@@ -334,7 +335,7 @@ app.post('/api/shorten', async (req, res) => {
         try {
             const variables = { 
                 URL: short_url, 
-                expiry_time: (expiry_time || (existing && existing.expiry_time)),
+                expiry_time: expiry_time,
                 CLIENT_ID: client_id,
                 ...customVariables
             };
