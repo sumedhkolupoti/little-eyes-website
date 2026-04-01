@@ -299,10 +299,18 @@ app.get('/api/subscription-check', async (req, res) => {
     }
 });
 
-// Short Code Resolver
-app.get('/:short_code', async (req, res) => {
+// Helper function to resolve short code
+async function resolveShortCode(short_code, req, res) {
     const urlsCollection = req.urlsCollection;
-    const { short_code } = req.params;
+
+    if (!short_code) {
+        res.setHeader('Content-Type', 'text/html');
+        return res.status(400).send(renderErrorPage(
+            "Oops! Missing Code",
+            "Please provide a valid camera code to access the stream.",
+            400
+        ));
+    }
 
     const existing = await urlsCollection.findOne({ _id: short_code });
 
@@ -349,12 +357,24 @@ app.get('/:short_code', async (req, res) => {
         return res.redirect(existing.long_url);
     } else {
         res.setHeader('Content-Type', 'text/html');
-        res.status(404).send(renderErrorPage(
+        return res.status(404).send(renderErrorPage(
             "Oops! Invalid Link",
             "The camera link you're trying to access is invalid or has been removed. Please check the URL and try again.",
             404
         ));
     }
+}
+
+// Short Code Resolver (/v?c=short_code)
+app.get('/v', async (req, res) => {
+    const { c: short_code } = req.query;
+    await resolveShortCode(short_code, req, res);
+});
+
+// Short Code Resolver (/:short_code)
+app.get('/:short_code', async (req, res) => {
+    const { short_code } = req.params;
+    await resolveShortCode(short_code, req, res);
 });
 
 // Export for Vercel
