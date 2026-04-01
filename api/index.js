@@ -208,11 +208,19 @@ async function resolveTemplateAndSend(templateId, mobileNo, variables, req) {
     }
 
     let expandedMessage = template.text;
+    console.log(`DEBUG: Template text before expansion: ${expandedMessage}`);
+    console.log(`DEBUG: Variables for expansion: ${JSON.stringify(allVariables)}`);
+
     for (const [key, value] of Object.entries(allVariables)) {
         if (value !== undefined && value !== null) {
             expandedMessage = expandedMessage.replaceAll(`[${key}]`, value.toString());
         }
     }
+
+    // Replace any remaining named placeholders with empty string to avoid DLT errors
+    expandedMessage = expandedMessage.replace(/\[[A-Z0-9_]+\]/g, "");
+
+    console.log(`DEBUG: Expanded message: ${expandedMessage}`);
 
     return await SmsService.sendSms({
         apiKey: process.env.SMS_API_KEY,
@@ -318,8 +326,11 @@ app.post('/api/shorten', async (req, res) => {
     // Handle SMS sending if requested
     let sms_status = 'NOT_REQUESTED';
     const effectiveTemplateId = templateId || process.env.DEFAULT_TEMPLATE_ID;
+    const shouldSendSms = String(send_sms) === 'true' || send_sms === true;
 
-    if (send_sms === true && mobileNo && effectiveTemplateId) {
+    console.log(`DEBUG: SMS Check - shouldSendSms: ${shouldSendSms}, mobileNo: ${mobileNo}, templateId: ${effectiveTemplateId}`);
+
+    if (shouldSendSms && mobileNo && effectiveTemplateId) {
         try {
             const variables = { 
                 URL: short_url, 
@@ -328,6 +339,7 @@ app.post('/api/shorten', async (req, res) => {
                 ...customVariables
             };
             const smsResponse = await resolveTemplateAndSend(effectiveTemplateId, mobileNo, variables, req);
+            console.log(`DEBUG: SMS Response: ${JSON.stringify(smsResponse)}`);
             sms_status = smsResponse.status;
         } catch (err) {
             console.error("Combined SMS sending failed:", err);
