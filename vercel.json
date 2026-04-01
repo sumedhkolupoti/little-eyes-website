@@ -5,6 +5,14 @@
             "destination": "/api/index.js"
         },
         {
+            "source": "/api/send-sms",
+            "destination": "/api/index.js"
+        },
+        {
+            "source": "/api/templates",
+            "destination": "/api/index.js"
+        },
+        {
             "source": "/api/subscription-check",
             "destination": "/api/index.js"
         },

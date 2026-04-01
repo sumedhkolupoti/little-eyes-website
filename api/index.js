@@ -2,6 +2,7 @@ import express from 'express';
 import { MongoClient } from 'mongodb';
 import cors from 'cors';
 import { customAlphabet } from 'nanoid';
+import { SmsService } from 'sms-lib';
 import 'dotenv/config';
 
 const app = express();
@@ -12,7 +13,7 @@ app.use(express.json());
 
 // MongoDB Setup
 const client = new MongoClient(MONGO_URI);
-let db, urlsCollection, subscriptionsCollection;
+let db, urlsCollection, subscriptionsCollection, smsTemplatesCollection;
 
 async function connectDB() {
     if (db) return { db, urlsCollection, subscriptionsCollection };
@@ -21,10 +22,12 @@ async function connectDB() {
         db = client.db("url_shortener");
         urlsCollection = db.collection("urls");
         subscriptionsCollection = db.collection("subscriptions");
+        smsTemplatesCollection = db.collection("sms_templates");
 
         // Create indexes
         await urlsCollection.createIndex({ long_url: 1, application_id: 1, base_url: 1 });
         await subscriptionsCollection.createIndex({ organization_id: 1, location_id: 1 });
+        await smsTemplatesCollection.createIndex({ name: 1 });
 
         return { db, urlsCollection, subscriptionsCollection };
     } catch (err) {
@@ -36,9 +39,10 @@ async function connectDB() {
 // Middleware to ensure DB is connected
 async function dbMiddleware(req, res, next) {
     try {
-        const { urlsCollection: coll, subscriptionsCollection: subColl } = await connectDB();
+        const { urlsCollection: coll, subscriptionsCollection: subColl, smsTemplatesCollection: tmpColl } = await connectDB();
         req.urlsCollection = coll;
         req.subscriptionsCollection = subColl;
+        req.smsTemplatesCollection = tmpColl;
         next();
     } catch (err) {
         console.error("Database connection failed:", err);
@@ -177,6 +181,32 @@ function renderErrorPage(title, message, statusCode = 404) {
 }
 
 // Shortener Endpoint
+// Template Resolution and SMS Sending Helper
+async function resolveTemplateAndSend(templateId, mobileNo, variables, req) {
+    const templatesCollection = req.smsTemplatesCollection;
+    const template = await templatesCollection.findOne({ _id: templateId });
+
+    if (!template) {
+        throw new Error(`Template not found with ID: ${templateId}`);
+    }
+
+    let expandedMessage = template.text;
+    for (const [key, value] of Object.entries(variables)) {
+        expandedMessage = expandedMessage.replace(`[${key}]`, value);
+    }
+
+    return await SmsService.sendSms({
+        apiKey: process.env.SMS_API_KEY,
+        mobileNo,
+        message: expandedMessage,
+        senderId: template.senderId || process.env.DEFAULT_SENDER_ID,
+        peid: template.peid || process.env.PEID,
+        dltTemplateId: template._id,
+        serviceName: process.env.DEFAULT_SERVICE_NAME || 'TEMPLATE_BASED'
+    });
+}
+
+// Shortener Endpoint
 app.post('/api/shorten', async (req, res) => {
     const urlsCollection = req.urlsCollection;
     const {
@@ -193,7 +223,9 @@ app.post('/api/shorten', async (req, res) => {
         expiry_minutes = 0,
         expiry_seconds = 0,
         creation_time: client_creation_time_str,
-        expiry_time: client_expiry_time_str
+        expiry_time: client_expiry_time_str,
+        mobileNo,
+        templateId
     } = req.body;
 
     if (!long_url) {
@@ -206,7 +238,7 @@ app.post('/api/shorten', async (req, res) => {
     }
 
     // Check for existing link
-    const existing = await urlsCollection.findOne({
+    let existing = await urlsCollection.findOne({
         long_url,
         application_id,
         base_url: formattedBaseUrl,
@@ -214,57 +246,65 @@ app.post('/api/shorten', async (req, res) => {
         mask_url
     });
 
+    let short_code, short_url;
     if (existing) {
         const now = new Date();
         if (!existing.expiry_time || existing.expiry_time > now) {
-            return res.json({
-                short_url: existing.short_url,
-                short_code: existing._id,
-                application_id,
-                client_id,
-                service_type,
-                cam_count
-            });
+            short_code = existing._id;
+            short_url = existing.short_url;
         }
     }
 
-    // Generate short code
-    let short_code;
-    while (true) {
-        short_code = nanoid();
-        const conflict = await urlsCollection.findOne({ _id: short_code });
-        if (!conflict) break;
+    if (!short_code) {
+        // Generate short code
+        while (true) {
+            short_code = nanoid();
+            const conflict = await urlsCollection.findOne({ _id: short_code });
+            if (!conflict) break;
+        }
+
+        short_url = `${formattedBaseUrl}${short_code}`;
+        const now = new Date();
+
+        // Calculate expiry
+        let expiry_time = parseIsoDate(client_expiry_time_str);
+        if (!expiry_time && (expiry_days || expiry_hours || expiry_minutes || expiry_seconds)) {
+            expiry_time = new Date(now.getTime());
+            expiry_time.setDate(expiry_time.getDate() + parseInt(expiry_days));
+            expiry_time.setHours(expiry_time.getHours() + parseInt(expiry_hours));
+            expiry_time.setMinutes(expiry_time.getMinutes() + parseInt(expiry_minutes));
+            expiry_time.setSeconds(expiry_time.getSeconds() + parseInt(expiry_seconds));
+        }
+
+        const new_entry = {
+            _id: short_code,
+            application_id,
+            client_id,
+            service_type,
+            cam_count,
+            cam_urls,
+            base_url: formattedBaseUrl,
+            long_url,
+            short_url,
+            creation_time: parseIsoDate(client_creation_time_str) || now,
+            expiry_time,
+            mask_url
+        };
+
+        await urlsCollection.insertOne(new_entry);
     }
 
-    const short_url = `${formattedBaseUrl}${short_code}`;
-    const now = new Date();
-
-    // Calculate expiry
-    let expiry_time = parseIsoDate(client_expiry_time_str);
-    if (!expiry_time && (expiry_days || expiry_hours || expiry_minutes || expiry_seconds)) {
-        expiry_time = new Date(now.getTime());
-        expiry_time.setDate(expiry_time.getDate() + parseInt(expiry_days));
-        expiry_time.setHours(expiry_time.getHours() + parseInt(expiry_hours));
-        expiry_time.setMinutes(expiry_time.getMinutes() + parseInt(expiry_minutes));
-        expiry_time.setSeconds(expiry_time.getSeconds() + parseInt(expiry_seconds));
+    // Handle SMS sending if requested
+    let sms_status = 'NOT_REQUESTED';
+    if (mobileNo && templateId) {
+        try {
+            const smsResponse = await resolveTemplateAndSend(templateId, mobileNo, { URL: short_url }, req);
+            sms_status = smsResponse.status;
+        } catch (err) {
+            console.error("Combined SMS sending failed:", err);
+            sms_status = `FAILED: ${err.message}`;
+        }
     }
-
-    const new_entry = {
-        _id: short_code,
-        application_id,
-        client_id,
-        service_type,
-        cam_count,
-        cam_urls,
-        base_url: formattedBaseUrl,
-        long_url,
-        short_url,
-        creation_time: parseIsoDate(client_creation_time_str) || now,
-        expiry_time,
-        mask_url
-    };
-
-    await urlsCollection.insertOne(new_entry);
 
     res.json({
         short_url,
@@ -272,8 +312,82 @@ app.post('/api/shorten', async (req, res) => {
         application_id,
         client_id,
         service_type,
-        cam_count
+        cam_count,
+        sms_status
     });
+});
+
+// SMS Sending Endpoint
+app.post('/api/send-sms', async (req, res) => {
+    const {
+        mobileNo,
+        message,
+        templateId,
+        variables = {},
+        apiKey = process.env.SMS_API_KEY,
+        senderId = process.env.DEFAULT_SENDER_ID,
+        peid = process.env.PEID,
+        dltTemplateId = process.env.DEFAULT_TEMPLATE_ID,
+        serviceName = process.env.DEFAULT_SERVICE_NAME || 'TEMPLATE_BASED',
+        unicode = false,
+        scheduleDate
+    } = req.body;
+
+    if (!mobileNo) {
+        return res.status(400).json({ error: "mobileNo is required" });
+    }
+
+    try {
+        let response;
+        if (templateId) {
+            response = await resolveTemplateAndSend(templateId, mobileNo, variables, req);
+        } else if (message) {
+            response = await SmsService.sendSms({
+                apiKey,
+                mobileNo,
+                message,
+                senderId,
+                serviceName,
+                peid,
+                dltTemplateId,
+                unicode,
+                scheduleDate
+            });
+        } else {
+            return res.status(400).json({ error: "message or templateId is required" });
+        }
+
+        if (response.status === 'SUCCESS') {
+            res.json(response);
+        } else {
+            res.status(500).json(response);
+        }
+    } catch (err) {
+        console.error("SMS Sending Error:", err);
+        res.status(500).json({ status: 'FAILED', error: err.message });
+    }
+});
+
+// Template Management Endpoint
+app.post('/api/templates', async (req, res) => {
+    const templatesCollection = req.smsTemplatesCollection;
+    const { _id, text, peid, senderId, name } = req.body;
+
+    if (!_id || !text) {
+        return res.status(400).json({ error: "_id (Template ID) and text are required" });
+    }
+
+    try {
+        await templatesCollection.updateOne(
+            { _id },
+            { $set: { text, peid, senderId, name, updated_at: new Date() } },
+            { upsert: true }
+        );
+        res.json({ message: "Template saved successfully", _id });
+    } catch (err) {
+        console.error("Template Save Error:", err);
+        res.status(500).json({ error: "Internal server error" });
+    }
 });
 
 // Subscription Check Endpoint
