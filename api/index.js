@@ -16,7 +16,7 @@ const client = new MongoClient(MONGO_URI);
 let db, urlsCollection, subscriptionsCollection, smsTemplatesCollection;
 
 async function connectDB() {
-    if (db) return { db, urlsCollection, subscriptionsCollection };
+    if (db) return { db, urlsCollection, subscriptionsCollection, smsTemplatesCollection };
     try {
         await client.connect();
         db = client.db("url_shortener");
@@ -29,7 +29,7 @@ async function connectDB() {
         await subscriptionsCollection.createIndex({ organization_id: 1, location_id: 1 });
         await smsTemplatesCollection.createIndex({ name: 1 });
 
-        return { db, urlsCollection, subscriptionsCollection };
+        return { db, urlsCollection, subscriptionsCollection, smsTemplatesCollection };
     } catch (err) {
         console.error("MongoDB connection error:", err);
         throw err;
