@@ -2,7 +2,7 @@ import express from 'express';
 import { MongoClient } from 'mongodb';
 import cors from 'cors';
 import { customAlphabet } from 'nanoid';
-import { SmsService } from 'sms-lib';
+import { SmsService } from './utils/sms-service.js';
 import 'dotenv/config';
 
 const app = express();
