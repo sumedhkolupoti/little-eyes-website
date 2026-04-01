@@ -190,9 +190,28 @@ async function resolveTemplateAndSend(templateId, mobileNo, variables, req) {
         throw new Error(`Template not found with ID: ${templateId}`);
     }
 
+    let allVariables = { ...variables };
+
+    // Auto-format expiry if present
+    if (allVariables.expiry_time && !allVariables.EXPIRY) {
+        try {
+            const date = new Date(allVariables.expiry_time);
+            allVariables.EXPIRY = new Intl.DateTimeFormat('en-IN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true,
+                timeZone: 'Asia/Kolkata'
+            }).format(date).toLowerCase();
+        } catch (e) {
+            console.error("Expiry formatting failed:", e);
+        }
+    }
+
     let expandedMessage = template.text;
-    for (const [key, value] of Object.entries(variables)) {
-        expandedMessage = expandedMessage.replace(`[${key}]`, value);
+    for (const [key, value] of Object.entries(allVariables)) {
+        if (value !== undefined && value !== null) {
+            expandedMessage = expandedMessage.replaceAll(`[${key}]`, value.toString());
+        }
     }
 
     return await SmsService.sendSms({
@@ -225,7 +244,9 @@ app.post('/api/shorten', async (req, res) => {
         creation_time: client_creation_time_str,
         expiry_time: client_expiry_time_str,
         mobileNo,
-        templateId
+        templateId,
+        send_sms = false,
+        variables: customVariables = {}
     } = req.body;
 
     if (!long_url) {
@@ -296,9 +317,15 @@ app.post('/api/shorten', async (req, res) => {
 
     // Handle SMS sending if requested
     let sms_status = 'NOT_REQUESTED';
-    if (mobileNo && templateId) {
+    if (send_sms === true && mobileNo && templateId) {
         try {
-            const smsResponse = await resolveTemplateAndSend(templateId, mobileNo, { URL: short_url }, req);
+            const variables = { 
+                URL: short_url, 
+                expiry_time: (expiry_time || (existing && existing.expiry_time)),
+                CLIENT_ID: client_id,
+                ...customVariables
+            };
+            const smsResponse = await resolveTemplateAndSend(templateId, mobileNo, variables, req);
             sms_status = smsResponse.status;
         } catch (err) {
             console.error("Combined SMS sending failed:", err);
