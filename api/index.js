@@ -317,7 +317,9 @@ app.post('/api/shorten', async (req, res) => {
 
     // Handle SMS sending if requested
     let sms_status = 'NOT_REQUESTED';
-    if (send_sms === true && mobileNo && templateId) {
+    const effectiveTemplateId = templateId || process.env.DEFAULT_TEMPLATE_ID;
+
+    if (send_sms === true && mobileNo && effectiveTemplateId) {
         try {
             const variables = { 
                 URL: short_url, 
@@ -325,7 +327,7 @@ app.post('/api/shorten', async (req, res) => {
                 CLIENT_ID: client_id,
                 ...customVariables
             };
-            const smsResponse = await resolveTemplateAndSend(templateId, mobileNo, variables, req);
+            const smsResponse = await resolveTemplateAndSend(effectiveTemplateId, mobileNo, variables, req);
             sms_status = smsResponse.status;
         } catch (err) {
             console.error("Combined SMS sending failed:", err);
