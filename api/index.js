@@ -25,7 +25,7 @@ async function connectDB() {
         // Create indexes
         await urlsCollection.createIndex({ long_url: 1, application_id: 1, base_url: 1 });
         await subscriptionsCollection.createIndex({ organization_id: 1, location_id: 1 });
-        
+
         return { db, urlsCollection, subscriptionsCollection };
     } catch (err) {
         console.error("MongoDB connection error:", err);
@@ -49,7 +49,7 @@ async function dbMiddleware(req, res, next) {
 app.use(dbMiddleware);
 
 // Helper for short code generation
-const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
+const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 3);
 
 function parseIsoDate(dateStr) {
     if (!dateStr) return null;
@@ -183,7 +183,7 @@ app.post('/api/shorten', async (req, res) => {
         url: long_url,
         application_id = 'default_app',
         client_id = 'unknown_client',
-        base_url = 'https://live.aeye.camera/',
+        base_url = 'https://l.aeye.camera/v?c=',
         service_type = 'live',
         cam_count = 1,
         cam_urls = [],
@@ -201,7 +201,7 @@ app.post('/api/shorten', async (req, res) => {
     }
 
     let formattedBaseUrl = base_url;
-    if (!formattedBaseUrl.endsWith('/')) {
+    if (!formattedBaseUrl.endsWith('/') && !formattedBaseUrl.includes('?')) {
         formattedBaseUrl += '/';
     }
 
@@ -285,13 +285,13 @@ app.get('/api/subscription-check', async (req, res) => {
     }
 
     try {
-        const subscription = await req.subscriptionsCollection.findOne({ 
-            organization_id: orgId, 
-            location_id: locId 
+        const subscription = await req.subscriptionsCollection.findOne({
+            organization_id: orgId,
+            location_id: locId
         });
 
-        res.json({ 
-            subscribed: subscription ? !!subscription.subscribed : false 
+        res.json({
+            subscribed: subscription ? !!subscription.subscribed : false
         });
     } catch (err) {
         console.error("Error checking subscription:", err);
