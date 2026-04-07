@@ -17,6 +17,10 @@
             "destination": "/api/index.js"
         },
         {
+            "source": "/api/live/checkout",
+            "destination": "/api/index.js"
+        },
+        {
             "source": "/v",
             "destination": "/api/index.js"
         },
