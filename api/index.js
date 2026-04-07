@@ -533,5 +533,42 @@ app.get('/:short_code', async (req, res) => {
     await resolveShortCode(short_code, req, res);
 });
 
+// Live Checkout Endpoint — immediately expires a short link
+app.post('/api/live/checkout', async (req, res) => {
+    const urlsCollection = req.urlsCollection;
+    const { short_url, short_code: provided_code } = req.body;
+
+    if (!short_url && !provided_code) {
+        return res.status(400).json({ error: "short_url or short_code is required" });
+    }
+
+    // Derive short_code: use provided, or extract after "c=" from short_url
+    let short_code = provided_code;
+    if (!short_code && short_url) {
+        if (short_url.includes('c=')) {
+            short_code = short_url.split('c=').pop();
+        } else {
+            short_code = short_url.split('/').pop();
+        }
+    }
+
+    try {
+        const result = await urlsCollection.updateOne(
+            { _id: short_code },
+            { $set: { expiry_time: new Date() } }  // expire immediately
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: `No link found for code: ${short_code}` });
+        }
+
+        console.log(`[checkout] Expired link ${short_code} (from ${short_url})`);
+        return res.json({ success: true, short_code, message: "Link expired successfully" });
+    } catch (err) {
+        console.error("[checkout] Error:", err);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+});
+
 // Export for Vercel
 export default app;
