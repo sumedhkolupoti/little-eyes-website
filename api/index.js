@@ -521,18 +521,6 @@ async function resolveShortCode(short_code, req, res) {
     }
 }
 
-// Short Code Resolver (/v?c=short_code)
-app.get('/v', async (req, res) => {
-    const { c: short_code } = req.query;
-    await resolveShortCode(short_code, req, res);
-});
-
-// Short Code Resolver (/:short_code)
-app.get('/:short_code', async (req, res) => {
-    const { short_code } = req.params;
-    await resolveShortCode(short_code, req, res);
-});
-
 // Live Checkout Endpoint — immediately expires a short link
 app.post('/api/live/checkout', async (req, res) => {
     const urlsCollection = req.urlsCollection;
@@ -568,6 +556,18 @@ app.post('/api/live/checkout', async (req, res) => {
         console.error("[checkout] Error:", err);
         return res.status(500).json({ error: "Internal server error" });
     }
+});
+
+// Short Code Resolver (/v?c=short_code)
+app.get('/v', async (req, res) => {
+    const { c: short_code } = req.query;
+    await resolveShortCode(short_code, req, res);
+});
+
+// Short Code Resolver (/:short_code) — must be LAST to avoid swallowing API routes
+app.get('/:short_code', async (req, res) => {
+    const { short_code } = req.params;
+    await resolveShortCode(short_code, req, res);
 });
 
 // Export for Vercel
