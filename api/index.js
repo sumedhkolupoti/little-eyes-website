@@ -254,7 +254,8 @@ app.post('/api/shorten', async (req, res) => {
         mobileNo,
         templateId,
         send_sms = false,
-        variables: customVariables = {}
+        variables: customVariables = {},
+        userdata = {}
     } = req.body;
 
     if (!long_url) {
@@ -318,7 +319,8 @@ app.post('/api/shorten', async (req, res) => {
             short_url,
             creation_time: parseIsoDate(client_creation_time_str) || now,
             expiry_time,
-            mask_url
+            mask_url,
+            userdata
         };
 
         await urlsCollection.insertOne(new_entry);
